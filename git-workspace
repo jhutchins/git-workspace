@@ -1,0 +1,158 @@
+#!/bin/sh
+#
+# The MIT License (MIT)
+#
+# Copyright (c) 2015 Jeffrey Hutchins
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+
+# enable debug mode
+if [ "$DEBUG" = "yes" ]; then
+	set -x
+fi
+
+usage() {
+    echo "usage: git workspace <subcommand>"
+    echo
+    echo "Available subcommands are:"
+    echo "    init     Initialize a new workspace."
+    echo "    diff     Show difference accross the workspace."
+    echo "    add      Add a project to this workspace."
+    echo "    rm       Remove project from this workspace."
+    echo "    ls       List projects part of this workspace."
+    echo "    help     Show this message."
+    echo
+    echo "Try 'git flow <subcommand> help' for details."
+}
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+ls() {
+    local workspace=$(git config branch.$BRANCH.workspace)
+    if [ "$workspace" = "" ]
+    then
+        echo "No workspace defined for $BRANCH branch"
+        echo "Try running 'git workspace init'"
+        exit 1
+    fi
+
+    echo $(git config workspace.$workspace.projects)
+}
+
+add() {
+    local workspace=$(git config branch.$BRANCH.workspace)
+    if [ "$workspace" = "" ]
+    then
+        echo "No workspace defined for $BRANCH branch"
+        echo "Try running 'git workspace init'"
+        exit 1
+    fi
+
+    if [ $# -lt 1 ]; then
+        echo "No projects specified"
+        exit 1
+    fi
+
+    local parent_dir=dirname $PWD
+    local remote=$(git config workspace.$workspace.remote)
+    local projects=$(git config workspace.$workspace.projects)
+    for new in $@; do
+        local match=0
+        for current in $projects; do
+            if [ "$new" = "$current" ]
+            then
+                match=1
+                break
+            fi
+        done
+        if [ "$match" = "0" ]
+        then
+            projects="$projects $new"
+            if [ ! -e "$parent_dir/$new" ]
+            then
+                pushd .. >> /dev/null
+                echo "cloning $remote/$new"
+                git clone $remote/$new
+                popd >> /dev/null
+            fi
+        fi
+    done
+    projects=$(echo $projects | tr " " "\n" | sort | tr "\n" " ")
+    pushd .. >> /dev/null
+    for project in $projects; do
+        cd project
+        git rev-parse --verify --quiet $BRANCH
+        if [ $? != 0 ]
+        then
+            local current_branch=$(git rev-parse --abbrev-ref HEAD)
+            git stash
+            git checkout master
+            git branch $BRANCH
+            git checkout $current_branch
+            git stash pop
+        fi
+        git config workspace.$workspace.remote "$remote"
+        git config branch.$BRANCH.workspace "$name"
+        git config workspace.$workspace.projects "$projects"
+        cd ..
+    done
+    popd >> /dev/null
+}
+
+init() {
+    local default
+    local answer
+    local remote
+
+    remote=$(git config branch.$BRANCH.remote)
+
+    default=$(dirname $(git config remote.$remote.url))
+    printf "Path for default remote: [$default] "
+    read answer
+    local remote_path=${answer:-$default}
+
+    default=$BRANCH
+    printf "Path for default remote: [$default] "
+    read answer
+    local name=${answer:-$default}
+
+    git config workspace.$name.remote "$remote_path"
+    git config branch.$BRANCH.workspace "$name"
+    git config workspace.$workspace.projects "${PWD##/*/}"
+}
+
+main() {
+    if [ $# -lt 1 ]; then
+        usage
+        exit 1
+    fi
+
+    CMD="$1"; shift
+
+	if ! type "$CMD" >/dev/null 2>&1; then
+		warn "Unknown subcommand: '$CMD'"
+		usage
+		exit 1
+	fi
+
+    $CMD "$@"
+}
+
+main "$@"
