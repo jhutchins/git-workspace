@@ -121,7 +121,9 @@ init() {
     local answer
     local remote
 
+    default=origin
     remote=$(git config branch.$BRANCH.remote)
+    remote=${remote:-$default}
 
     default=$(dirname $(git config remote.$remote.url))
     printf "Path for default remote: [$default] "
@@ -129,13 +131,13 @@ init() {
     local remote_path=${answer:-$default}
 
     default=$BRANCH
-    printf "Path for default remote: [$default] "
+    printf "Workspace name: [$default] "
     read answer
     local name=${answer:-$default}
 
     git config workspace.$name.remote "$remote_path"
     git config branch.$BRANCH.workspace "$name"
-    git config workspace.$workspace.projects "${PWD##/*/}"
+    git config workspace.$name.projects "${PWD##/*/}"
 }
 
 main() {
