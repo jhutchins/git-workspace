@@ -55,6 +55,8 @@ teardown() {
 
 init_setup() {
     git init
+    git config --local user.email "you@example.com"
+    git config --local user.name "Your Name"
     touch a
     git add a
     git commit -am "Add a"
