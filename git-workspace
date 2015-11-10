@@ -28,6 +28,8 @@ if [ "$DEBUG" = "yes" ]; then
 	set -x
 fi
 
+. utils.js
+
 usage() {
     echo "usage: git workspace <subcommand>"
     echo
@@ -41,8 +43,6 @@ usage() {
     echo
     echo "Try 'git flow <subcommand> help' for details."
 }
-
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 ls() {
     local workspace=$(git config branch.$BRANCH.workspace)
@@ -158,3 +158,4 @@ main() {
 }
 
 main "$@"
+finalize
