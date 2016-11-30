@@ -125,7 +125,11 @@ init() {
     remote=$(git config branch.$BRANCH.remote)
     remote=${remote:-$default}
 
-    default=$(dirname $(git config remote.$remote.url))
+    url=$(git config remote.$remote.url)
+    default=
+    if [ "$url" != "" ]; then
+        default=$(dirname $url)
+    fi
     printf "Path for default remote: [$default] "
     read answer
     local remote_path=${answer:-$default}
