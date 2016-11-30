@@ -39,7 +39,7 @@ usage() {
     echo "    ls       List projects part of this workspace."
     echo "    help     Show this message."
     echo
-    echo "Try 'git flow <subcommand> help' for details."
+    echo "Try 'git workspace <subcommand> help' for details."
 }
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -138,6 +138,14 @@ init() {
     git config workspace.$name.remote "$remote_path"
     git config branch.$BRANCH.workspace "$name"
     git config workspace.$name.projects "${PWD##/*/}"
+}
+
+help() {
+    usage
+    if [ $# -lt 1 ]; then
+        exit 0
+    fi
+    exit 1
 }
 
 main() {
